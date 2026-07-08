@@ -1,0 +1,330 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    .admin-header {
+        background: linear-gradient(135deg, #e53e3e 0%, #c53030 100%);
+        color: white;
+        border: none;
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 10px 25px rgba(197, 48, 48, 0.15);
+        margin-bottom: 2rem;
+    }
+    .profile-card {
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        background: #fff;
+        padding: 1.5rem;
+    }
+    .chart-card {
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        background: #fff;
+        padding: 1.5rem;
+    }
+    .stat-badge {
+        font-size: 0.85rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 30px;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Back Navigation -->
+    <div class="mb-3">
+        <a href="{{ url_for('admin_users') }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+            <i class="fas fa-arrow-left me-1"></i> Back to User List
+        </a>
+    </div>
+
+    <!-- Header -->
+    <div class="admin-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <span class="badge bg-white bg-opacity-25 text-white mb-2 fs-6 px-3 rounded-pill text-uppercase">User Profile Details</span>
+                <h1 class="fw-bold mb-1">{{ user.username }}</h1>
+                <p class="mb-0 opacity-90"><i class="fas fa-envelope me-1"></i> {{ user.email }} | Registered: {{ user.created_at.strftime('%Y-%m-%d') }}</p>
+            </div>
+            <div class="col-md-4 text-md-end text-start mt-3 mt-md-0">
+                {% if user.is_admin %}
+                    <span class="badge bg-white bg-opacity-25 fs-5 px-4 py-2 border rounded-pill">System Administrator</span>
+                {% else %}
+                    <span class="badge bg-white bg-opacity-10 fs-5 px-4 py-2 border border-white border-opacity-10 rounded-pill">Platform User</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- User Demographics & Metrics -->
+    <div class="row g-4 mb-4">
+        <!-- Demographics -->
+        <div class="col-lg-4">
+            <div class="card profile-card h-100">
+                <h5 class="fw-bold text-dark mb-4"><i class="fas fa-address-card text-primary me-2"></i>Demographics</h5>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between px-0 py-2 border-0">
+                        <span class="text-muted">Age</span>
+                        <span class="fw-bold text-dark">{{ user.age }} years</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0 py-2 border-0">
+                        <span class="text-muted">Occupation</span>
+                        <span class="fw-bold text-dark">{{ user.occupation }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0 py-2 border-0">
+                        <span class="text-muted">Monthly Income</span>
+                        <span class="fw-bold text-success">₹{{ "{:,.2f}".format(user.monthly_income) }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0 py-2 border-0">
+                        <span class="text-muted">Monthly Expenses</span>
+                        <span class="fw-bold text-danger">₹{{ "{:,.2f}".format(user.monthly_expenses) }}</span>
+                    </li>
+                    <li class="list-group-item d-flex justify-content-between px-0 py-2 border-0">
+                        <span class="text-muted">Baseline Savings</span>
+                        <span class="fw-bold text-primary">₹{{ "{:,.2f}".format(user.savings) }}</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- System Stats -->
+        <div class="col-lg-8">
+            <div class="row g-4 h-100">
+                <div class="col-md-6">
+                    <div class="card profile-card h-100">
+                        <h5 class="fw-bold text-dark mb-3"><i class="fas fa-wallet text-success me-2"></i>Financial Stats</h5>
+                        <ul class="list-group list-group-flush mb-0">
+                            <li class="list-group-item d-flex justify-content-between px-0 py-2 border-0">
+                                <span class="text-muted">Transactions Logged</span>
+                                <span class="badge bg-secondary rounded-pill">{{ total_transactions }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between px-0 py-2 border-0">
+                                <span class="text-muted">Actual Income (Total)</span>
+                                <span class="fw-bold text-success">₹{{ "{:,.2f}".format(metrics.income) }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between px-0 py-2 border-0">
+                                <span class="text-muted">Actual Expenses (Total)</span>
+                                <span class="fw-bold text-danger">₹{{ "{:,.2f}".format(metrics.expenses) }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between px-0 py-2 border-0">
+                                <span class="text-muted">Actual Savings Rate</span>
+                                <span class="fw-bold text-primary">{{ "%.1f"|format(metrics.rate) }}%</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card profile-card h-100">
+                        <h5 class="fw-bold text-dark mb-3"><i class="fas fa-graduation-cap text-info me-2"></i>Habit & Goal Stats</h5>
+                        <ul class="list-group list-group-flush mb-0">
+                            <li class="list-group-item d-flex justify-content-between px-0 py-2 border-0">
+                                <span class="text-muted">Study Sessions logged</span>
+                                <span class="badge bg-secondary rounded-pill">{{ total_study_logs }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between px-0 py-2 border-0">
+                                <span class="text-muted">Fitness Logs logged</span>
+                                <span class="badge bg-secondary rounded-pill">{{ total_fitness_logs }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between px-0 py-2 border-0">
+                                <span class="text-muted">Active Goals</span>
+                                <span class="fw-bold text-dark">{{ total_goals }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between px-0 py-2 border-0">
+                                <span class="text-muted">Achieved Goals</span>
+                                <span class="fw-bold text-success">{{ achieved_goals }} ({{ "%.0f"|format(achieved_goals/max(1, total_goals)*100) if total_goals > 0 else '0' }}%)</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Twin AI Predictions Block -->
+    <div class="card chart-card mb-4 border border-danger border-opacity-25 bg-danger-subtle bg-opacity-10">
+        <div class="card-body">
+            <h5 class="fw-bold text-dark mb-2"><i class="fas fa-magic text-danger me-2"></i>Twin AI Diagnostics</h5>
+            <p class="mb-1 text-muted"><strong>Predicted GPA:</strong> {{ gpa.gpa }} / 4.0 | <strong>Academic focus:</strong> {{ gpa.efficiency }}%</p>
+            <p class="mb-0 text-muted"><strong>Academics Advice:</strong> {{ gpa.recommendation }}</p>
+        </div>
+    </div>
+
+    <!-- Detail Charts Section -->
+    <div class="row g-4 mb-4">
+        <!-- Finance Monthly actual bar -->
+        <div class="col-lg-6">
+            <div class="card chart-card h-100">
+                <h5 class="fw-bold text-dark mb-3"><i class="fas fa-chart-bar text-success me-2"></i>Cash Flow Trend</h5>
+                <div style="height: 250px;">
+                    {% if months %}
+                        <canvas id="financeChart"></canvas>
+                    {% else %}
+                        <p class="text-muted text-center py-5">No transaction data available.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Habits Trend (Study / Fitness) -->
+        <div class="col-lg-6">
+            <div class="card chart-card h-100">
+                <h5 class="fw-bold text-dark mb-3"><i class="fas fa-chart-line text-info me-2"></i>Habit Trends (Last 14 Days)</h5>
+                <div style="height: 250px;">
+                    {% if study_days or fitness_days %}
+                        <canvas id="habitsChart"></canvas>
+                    {% else %}
+                        <p class="text-muted text-center py-5">No study or fitness logging data.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logs Summary Lists -->
+    <div class="row g-4">
+        <!-- Transactions -->
+        <div class="col-md-4">
+            <div class="card chart-card">
+                <h5 class="fw-bold text-dark mb-3"><i class="fas fa-wallet text-success me-2"></i>Recent Transactions</h5>
+                <div class="list-group list-group-flush">
+                    {% if recent_transactions %}
+                        {% for tx in recent_transactions %}
+                        <div class="list-group-item px-0 border-0 d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="fw-semibold d-block text-dark">{{ tx.category }}</span>
+                                <small class="text-muted">{{ tx.date.strftime('%Y-%m-%d') }}</small>
+                            </div>
+                            <span class="fw-bold {% if tx.type == 'income' %}text-success{% else %}text-danger{% endif %}">
+                                {% if tx.type == 'income' %}+{% else %}-{% endif %}₹{{ "{:,.0f}".format(tx.amount) }}
+                            </span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted small text-center py-3">No transactions logged.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Study -->
+        <div class="col-md-4">
+            <div class="card chart-card">
+                <h5 class="fw-bold text-dark mb-3"><i class="fas fa-book-open text-primary me-2"></i>Recent Study</h5>
+                <div class="list-group list-group-flush">
+                    {% if recent_study %}
+                        {% for log in recent_study %}
+                        <div class="list-group-item px-0 border-0 d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="fw-semibold d-block text-dark">{{ log.subject }}</span>
+                                <small class="text-muted">{{ log.date.strftime('%Y-%m-%d') }}</small>
+                            </div>
+                            <span class="badge bg-primary rounded-pill">{{ log.hours }}h ({{ log.productivity_score }}%)</span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted small text-center py-3">No study sessions logged.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Fitness -->
+        <div class="col-md-4">
+            <div class="card chart-card">
+                <h5 class="fw-bold text-dark mb-3"><i class="fas fa-running text-success me-2"></i>Recent Workouts</h5>
+                <div class="list-group list-group-flush">
+                    {% if recent_fitness %}
+                        {% for log in recent_fitness %}
+                        <div class="list-group-item px-0 border-0 d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="fw-semibold d-block text-dark">{{ log.activity }}</span>
+                                <small class="text-muted">{{ log.date.strftime('%Y-%m-%d') }}</small>
+                            </div>
+                            <span class="badge bg-success rounded-pill">{{ log.duration_min }}m ({{ log.calories_burned }}cal)</span>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted small text-center py-3">No fitness activities logged.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    {% if months %}
+    // Finance Trend Bar Chart
+    const ctxFinance = document.getElementById('financeChart').getContext('2d');
+    new Chart(ctxFinance, {
+        type: 'bar',
+        data: {
+            labels: {{ months|tojson }},
+            datasets: [
+                {
+                    label: 'Income',
+                    data: {{ income_data|tojson }},
+                    backgroundColor: 'rgba(72, 187, 120, 0.7)',
+                    borderColor: 'rgba(72, 187, 120, 1)',
+                    borderWidth: 1
+                },
+                {
+                    label: 'Expenses',
+                    data: {{ expense_data|tojson }},
+                    backgroundColor: 'rgba(229, 62, 62, 0.7)',
+                    borderColor: 'rgba(229, 62, 62, 1)',
+                    borderWidth: 1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+    {% endif %}
+
+    {% if study_days or fitness_days %}
+    // Habits Trend
+    const ctxHabits = document.getElementById('habitsChart').getContext('2d');
+    new Chart(ctxHabits, {
+        type: 'line',
+        data: {
+            labels: {% if study_days %}{{ study_days|tojson }}{% else %}{{ fitness_days|tojson }}{% endif %},
+            datasets: [
+                {
+                    label: 'Study (Hours)',
+                    data: {{ study_hours|tojson }},
+                    borderColor: '#3182ce',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    tension: 0.3
+                },
+                {
+                    label: 'Workout (Minutes)',
+                    data: {{ fitness_minutes|tojson }},
+                    borderColor: '#48bb78',
+                    backgroundColor: 'transparent',
+                    borderWidth: 2,
+                    tension: 0.3
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: { y: { beginAtZero: true } }
+        }
+    });
+    {% endif %}
+</script>
+{% endblock %}
