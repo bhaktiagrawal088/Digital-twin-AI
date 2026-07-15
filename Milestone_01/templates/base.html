@@ -92,7 +92,7 @@
 
                     <!-- ===== ADMIN DROPDOWN (only visible to admins) ===== -->
                     {% if current_user.is_admin %}
-                    <!-- <li class="nav-item dropdown">
+                    <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button"
                             data-bs-toggle="dropdown">
                             <i class="fas fa-user-cog"></i> Admin
@@ -111,7 +111,7 @@
                                     <i class="fas fa-user me-2"></i>My Profile
                                 </a></li>
                         </ul>
-                    </li> -->
+                    </li>
                     {% endif %}
 
                     <!-- ===== USER FEATURES (visible to EVERYONE – admins AND normal users) ===== -->
@@ -145,13 +145,11 @@
                             <i class="fas fa-comment-dots me-1"></i>Assistant
                         </a>
                     </li>
-
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('index') }}">
                             <i class="fas fa-home me-1"></i>Home
                         </a>
                     </li>
-
 
                     <!-- ===== USER DROPDOWN (avatar + logout) ===== -->
                     <li class="nav-item dropdown">
@@ -190,6 +188,11 @@
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('register') }}">
                             <i class="fas fa-user-plus me-1"></i>Register
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('index') }}">
+                            <i class="fas fa-home me-1"></i>Home
                         </a>
                     </li>
 

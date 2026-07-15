@@ -195,12 +195,12 @@ def create_default_admin():
         admin.is_admin = True
         db.session.add(admin)
         db.session.commit()
-        print("✅ Default admin user created:")
+        print("[OK] Default admin user created:")
         print("   Username: admin")
         print("   Password: admin123")
         print("   Please change your password after first login.")
     else:
-        print("✅ Admin user already exists.")
+        print("[OK] Admin user already exists.")
 
 # ------------------------- Routes -------------------------
 @login_manager.user_loader
@@ -971,6 +971,30 @@ def admin_user_detail(user_id):
                            recent_transactions=recent_transactions,
                            recent_study=recent_study,
                            recent_fitness=recent_fitness)
+# ------------------------- Privacy, Contact, Terms Routes -------------------------
+@app.route('/privacy')
+def privacy():
+    return render_template('privacy.html')
+
+@app.route('/terms')
+def terms():
+    return render_template('term.html')
+
+@app.route('/about')
+def about():
+    return redirect(url_for('about.html'))
+
+@app.route('/contact', methods=['GET', 'POST'])
+def contact():
+    if request.method == 'POST':
+        name = request.form.get('name')
+        email = request.form.get('email')
+        subject = request.form.get('subject')
+        message = request.form.get('message')
+        print(f"Contact form submission: {name} <{email}> - {subject}: {message}")
+        flash("Thank you! Your message has been sent successfully.")
+        return redirect(url_for('contact'))
+    return render_template('contact.html')
 
 # ------------------------- Run the App -------------------------
 if __name__ == '__main__':
