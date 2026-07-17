@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 
 {% block extra_css %}
+<!-- your existing CSS (keep unchanged) -->
 <style>
     .finance-wrapper {
         background: #f7fafc;
@@ -139,6 +140,11 @@
         opacity: 0.7;
     }
 
+    .action-btn {
+        padding: 0.2rem 0.5rem;
+        font-size: 0.8rem;
+    }
+
     @media (max-width: 768px) {
         .metric-card h2 {
             font-size: 1.4rem;
@@ -216,7 +222,7 @@
                     <i class="fas fa-plus-circle text-primary me-1"></i> Add Transaction
                 </div>
                 <div class="card-body">
-                    <form method="POST">
+                    <form method="POST" action="{{ url_for('user_financial') }}">
                         <div class="mb-2">
                             <label class="form-label small fw-bold">Date</label>
                             <input type="date" name="date" class="form-control"
@@ -276,7 +282,7 @@
 
         <!-- ===== Right: Transactions + Forecast ===== -->
         <div class="col-lg-8">
-            <!-- Transactions -->
+            <!-- Transactions Card -->
             <div class="card card-custom mb-3">
                 <div class="card-header-custom d-flex justify-content-between align-items-center">
                     <span><i class="fas fa-list-ul text-primary me-1"></i> Recent Transactions</span>
@@ -291,6 +297,7 @@
                                     <th>Category</th>
                                     <th class="text-end">Amount</th>
                                     <th class="text-center">Type</th>
+                                    <th class="text-center">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -305,10 +312,29 @@
                                             {{ tx.type|title }}
                                         </span>
                                     </td>
+                                    <td class="text-center">
+                                        <!-- Edit button → opens modal -->
+                                        <button type="button" class="btn btn-sm btn-outline-primary action-btn me-1"
+                                            data-bs-toggle="modal" data-bs-target="#editModal" data-id="{{ tx.id }}"
+                                            data-date="{{ tx.date.strftime('%Y-%m-%d') }}"
+                                            data-category="{{ tx.category }}" data-amount="{{ tx.amount }}"
+                                            data-type="{{ tx.type }}">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <!-- Delete form (POST) -->
+                                        <form method="POST" action="{{ url_for('delete_transaction', id=tx.id) }}"
+                                            style="display:inline-block;"
+                                            onsubmit="return confirm('Permanently delete this transaction?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger action-btn">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </form>
+                                    </td>
                                 </tr>
                                 {% else %}
                                 <tr>
-                                    <td colspan="4" class="text-center text-muted py-3">No transactions recorded yet.
+                                    <td colspan="5" class="text-center text-muted py-3">
+                                        No transactions recorded yet.
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -339,15 +365,81 @@
         </div>
     </div>
 </div>
+
+<!-- ===== EDIT MODAL ===== -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('edit_transaction') }}" id="editForm">
+                <input type="hidden" name="id" id="edit-id">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editModalLabel"><i class="fas fa-edit text-primary me-2"></i>Edit
+                        Transaction</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Date</label>
+                        <input type="date" name="date" id="edit-date" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Category</label>
+                        <select name="category" id="edit-category" class="form-select">
+                            <option>Food</option>
+                            <option>Transport</option>
+                            <option>Shopping</option>
+                            <option>Entertainment</option>
+                            <option>Utilities</option>
+                            <option>Rent</option>
+                            <option>Healthcare</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Amount (₹)</label>
+                        <input type="number" name="amount" id="edit-amount" step="0.01" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Type</label>
+                        <select name="type" id="edit-type" class="form-select">
+                            <option value="expense">Expense</option>
+                            <option value="income">Income</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary-custom">
+                        <i class="fas fa-save me-1"></i> Update
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
-<!-- Chart.js scripts -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
+<!-- Populate edit modal with transaction data -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var editModal = document.getElementById('editModal');
+        editModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget;
+            document.getElementById('edit-id').value = button.getAttribute('data-id');
+            document.getElementById('edit-date').value = button.getAttribute('data-date');
+            document.getElementById('edit-category').value = button.getAttribute('data-category');
+            document.getElementById('edit-amount').value = button.getAttribute('data-amount');
+            document.getElementById('edit-type').value = button.getAttribute('data-type');
+        });
+    });
+</script>
+
+<!-- Forecast Chart (only if data exists) -->
 {% if forecast %}
 <script>
-    // Forecast Chart
     const ctxForecast = document.getElementById('forecastChart').getContext('2d');
     new Chart(ctxForecast, {
         type: 'line',
@@ -355,13 +447,14 @@
             labels: ['Month 1', 'Month 2', 'Month 3', 'Month 4', 'Month 5', 'Month 6'],
             datasets: [{
                 label: 'Projected Expenses',
-                data: {{ forecast| tojson }},
-                borderColor: '#667eea',
-                backgroundColor: 'rgba(102,126,234,0.1)',
-                fill: true,
-                tension: 0.3,
-                pointBackgroundColor: '#667eea',
-                pointRadius: 3,
+                data: {{ forecast| tojson }}
+    },
+        borderColor: '#667eea',
+        backgroundColor: 'rgba(102,126,234,0.1)',
+        fill: true,
+        tension: 0.3,
+        pointBackgroundColor: '#667eea',
+        pointRadius: 3,
             }]
         },
         options: {
@@ -379,9 +472,9 @@
 </script>
 {% endif %}
 
+<!-- Pie Chart (only if categories exist) -->
 {% if categories %}
 <script>
-    // Pie Chart for Spending by Category
     const ctxPie = document.getElementById('categoryPieChart').getContext('2d');
     new Chart(ctxPie, {
         type: 'doughnut',

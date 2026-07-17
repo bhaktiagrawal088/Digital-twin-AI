@@ -195,12 +195,12 @@ def create_default_admin():
         admin.is_admin = True
         db.session.add(admin)
         db.session.commit()
-        print("[OK] Default admin user created:")
+        print("✅ Default admin user created:")
         print("   Username: admin")
         print("   Password: admin123")
         print("   Please change your password after first login.")
     else:
-        print("[OK] Admin user already exists.")
+        print("✅ Admin user already exists.")
 
 # ------------------------- Routes -------------------------
 @login_manager.user_loader
@@ -479,11 +479,58 @@ def user_financial():
                            category_amounts=category_amounts)
 
 
+@app.route('/edit_transaction', methods=['POST'])
+@login_required
+def edit_transaction():
+    """Update an existing transaction (called from the modal)."""
+    tx_id = request.form.get('id')
+    if not tx_id:
+        flash('Transaction ID missing.', 'danger')
+        return redirect(url_for('user_financial'))
+
+    # Retrieve the transaction and ensure it belongs to the current user
+    tx = Transaction.query.filter_by(id=tx_id, user_id=current_user.id).first()
+    if not tx:
+        flash('Transaction not found or you do not have permission.', 'danger')
+        return redirect(url_for('user_financial'))
+
+    # Update fields
+    try:
+        tx.date = datetime.strptime(request.form['date'], '%Y-%m-%d').date()
+        tx.category = request.form['category']
+        tx.amount = float(request.form['amount'])
+        tx.type = request.form['type']
+        db.session.commit()
+        flash('Transaction updated successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating transaction: {str(e)}', 'danger')
+
+    return redirect(url_for('user_financial'))
+
+
+@app.route('/delete_transaction/<int:id>', methods=['POST'])
+@login_required
+def delete_transaction(id):
+    """Delete a transaction by ID (only if it belongs to the current user)."""
+    tx = Transaction.query.filter_by(id=id, user_id=current_user.id).first()
+    if not tx:
+        flash('Transaction not found or you do not have permission.', 'danger')
+        return redirect(url_for('user_financial'))
+
+    try:
+        db.session.delete(tx)
+        db.session.commit()
+        flash('Transaction deleted.', 'info')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting transaction: {str(e)}', 'danger')
+
+    return redirect(url_for('user_financial'))
+
 @app.route('/user/study', methods=['GET', 'POST'])
 @login_required
 def user_study():
-
-
     if request.method == 'POST':
         date = datetime.strptime(request.form['date'], '%Y-%m-%d')
         hours = float(request.form['hours'])
@@ -493,22 +540,19 @@ def user_study():
                        productivity_score=productivity)
         db.session.add(log)
         db.session.commit()
-        flash('Study session logged.')
+        flash('Study session logged.', 'success')
         return redirect(url_for('user_study'))
 
     logs = current_user.study_logs
-    gpa_info = predict_gpa(current_user)
+    gpa_info = predict_gpa(current_user)   # your existing helper
 
     # --- Data for charts ---
-    # 1. Daily study hours (last 14 days)
-    from collections import defaultdict
     study_by_day = defaultdict(float)
     for log in logs:
         study_by_day[log.date.strftime('%Y-%m-%d')] += log.hours
     study_dates = sorted(study_by_day.keys())[-14:]
     study_hours = [study_by_day.get(d, 0) for d in study_dates]
 
-    # 2. Subject breakdown (total hours per subject)
     subject_totals = defaultdict(float)
     for log in logs:
         if log.subject:
@@ -516,22 +560,19 @@ def user_study():
     subjects = list(subject_totals.keys())
     subject_hours = list(subject_totals.values())
 
-    # 3. Productivity trend (last 14 days) – we need average productivity per day
     prod_by_day = defaultdict(list)
     for log in logs:
         prod_by_day[log.date.strftime('%Y-%m-%d')].append(log.productivity_score)
     prod_dates = sorted(prod_by_day.keys())[-14:]
     prod_avg = [sum(prod_by_day[d])/len(prod_by_day[d]) if d in prod_by_day else 0 for d in prod_dates]
 
-    # 4. Total metrics
     total_hours = sum(log.hours for log in logs)
     avg_productivity = sum(log.productivity_score for log in logs) / len(logs) if logs else 0
-    # Study streak: consecutive days with at least some study in last 7 days
+
+    # Study streak
     study_streak = 0
     if logs:
-        # Get all unique study days, sorted descending
         study_days_set = sorted(set(log.date for log in logs), reverse=True)
-        # Check from today backwards
         today = datetime.now().date()
         for i in range(7):
             check_date = today - timedelta(days=i)
@@ -540,7 +581,6 @@ def user_study():
             else:
                 break
 
-    # Recent logs (last 10, newest first)
     recent_logs = logs[-10:][::-1]
 
     return render_template('user/study.html',
@@ -557,6 +597,51 @@ def user_study():
                            avg_productivity=avg_productivity,
                            study_streak=study_streak)
 
+
+@app.route('/edit_study_log', methods=['POST'])
+@login_required
+def edit_study_log():
+    log_id = request.form.get('id')
+    if not log_id:
+        flash('Log ID missing.', 'danger')
+        return redirect(url_for('user_study'))
+
+    log = StudyLog.query.filter_by(id=log_id, user_id=current_user.id).first()
+    if not log:
+        flash('Log not found or you do not have permission.', 'danger')
+        return redirect(url_for('user_study'))
+
+    try:
+        log.date = datetime.strptime(request.form['date'], '%Y-%m-%d').date()
+        log.hours = float(request.form['hours'])
+        log.subject = request.form.get('subject')
+        log.productivity_score = int(request.form['productivity'])
+        db.session.commit()
+        flash('Study log updated successfully!', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error updating log: {str(e)}', 'danger')
+
+    return redirect(url_for('user_study'))
+
+
+@app.route('/delete_study_log/<int:id>', methods=['POST'])
+@login_required
+def delete_study_log(id):
+    log = StudyLog.query.filter_by(id=id, user_id=current_user.id).first()
+    if not log:
+        flash('Log not found or you do not have permission.', 'danger')
+        return redirect(url_for('user_study'))
+
+    try:
+        db.session.delete(log)
+        db.session.commit()
+        flash('Study log deleted.', 'info')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting log: {str(e)}', 'danger')
+
+    return redirect(url_for('user_study'))
 
 @app.route('/user/fitness', methods=['GET', 'POST'])
 @login_required
@@ -971,31 +1056,34 @@ def admin_user_detail(user_id):
                            recent_transactions=recent_transactions,
                            recent_study=recent_study,
                            recent_fitness=recent_fitness)
-# ------------------------- Privacy, Contact, Terms Routes -------------------------
-@app.route('/privacy')
-def privacy():
-    return render_template('privacy.html')
-
-@app.route('/terms')
-def terms():
-    return render_template('term.html')
-
-@app.route('/about')
-def about():
-    return redirect(url_for('about.html'))
-
 @app.route('/contact', methods=['GET', 'POST'])
 def contact():
     if request.method == 'POST':
-        name = request.form.get('name')
-        email = request.form.get('email')
-        subject = request.form.get('subject')
-        message = request.form.get('message')
-        print(f"Contact form submission: {name} <{email}> - {subject}: {message}")
-        flash("Thank you! Your message has been sent successfully.")
+        name = request.form.get('name', '').strip()
+        email = request.form.get('email', '').strip()
+        subject = request.form.get('subject', '').strip()
+        message = request.form.get('message', '').strip()
+
+        if not all([name, email, subject, message]):
+            flash('All fields are required.')
+            return redirect(url_for('contact'))
+
+        # Here you can send an email, save to database, etc.
+        # For now, we'll just flash a success message.
+        flash('✅ Your message has been sent successfully! We\'ll get back to you soon.')
         return redirect(url_for('contact'))
+
     return render_template('contact.html')
 
+@app.route('/about')
+def about():
+    return render_template('about.html')
+@app.route('/privacy')
+def privacy():
+    return render_template('privacy.html')
+@app.route('/terms')
+def terms():
+    return render_template('terms.html')
 # ------------------------- Run the App -------------------------
 if __name__ == '__main__':
     with app.app_context():
