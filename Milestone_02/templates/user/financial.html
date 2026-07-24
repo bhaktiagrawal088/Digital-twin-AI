@@ -447,14 +447,13 @@
             labels: ['Month 1', 'Month 2', 'Month 3', 'Month 4', 'Month 5', 'Month 6'],
             datasets: [{
                 label: 'Projected Expenses',
-                data: {{ forecast| tojson }}
-    },
-        borderColor: '#667eea',
-        backgroundColor: 'rgba(102,126,234,0.1)',
-        fill: true,
-        tension: 0.3,
-        pointBackgroundColor: '#667eea',
-        pointRadius: 3,
+                data: {{ forecast| tojson }},
+                borderColor: '#667eea',
+                backgroundColor: 'rgba(102,126,234,0.1)',
+                fill: true,
+                tension: 0.3,
+                pointBackgroundColor: '#667eea',
+                pointRadius: 3
             }]
         },
         options: {

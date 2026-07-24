@@ -13,7 +13,7 @@ from collections import defaultdict
 load_dotenv()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-key-change-in-production')
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY') or 'dev-key-change-in-production'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///digital_twin.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -721,6 +721,41 @@ def user_fitness():
                            activities=activities,
                            activity_minutes=activity_minutes,
                            streak=streak)
+@app.route('/fitness/edit/<int:log_id>', methods=['POST'])
+@login_required
+def edit_fitness(log_id):
+    log = FitnessLog.query.get_or_404(log_id)
+    if log.user_id != current_user.id:
+        flash('You are not authorised to edit this activity.')
+        return redirect(url_for('user_fitness'))
+
+    date = datetime.strptime(request.form['date'], '%Y-%m-%d')
+    activity = request.form['activity']
+    duration = int(request.form['duration'])
+    calories = int(request.form['calories'])
+
+    log.date = date
+    log.activity = activity
+    log.duration_min = duration
+    log.calories_burned = calories
+
+    db.session.commit()
+    flash('Activity updated successfully! ✅')
+    return redirect(url_for('user_fitness'))
+
+
+@app.route('/fitness/delete/<int:log_id>', methods=['POST'])
+@login_required
+def delete_fitness(log_id):
+    log = FitnessLog.query.get_or_404(log_id)
+    if log.user_id != current_user.id:
+        flash('You are not authorised to delete this activity.')
+        return redirect(url_for('user_fitness'))
+
+    db.session.delete(log)
+    db.session.commit()
+    flash('Activity deleted successfully! 🗑️')
+    return redirect(url_for('user_fitness'))
 
 @app.route('/user/simulation', methods=['GET', 'POST'])
 @login_required
@@ -798,20 +833,26 @@ def user_assistant():
 
         # ---- Fallback ----
         if not response:
-            q = query.lower()
-            if 'spend' in q or 'save' in q or 'money' in q:
+            q = query.lower().strip()
+            if any(w in q for w in ['hi', 'hello', 'hy', 'hey']):
+                response = f"Hello {current_user.username}! How can I assist you today with your finances, studies, or fitness?"
+            elif q in ['yes', 'yeah', 'yep', 'sure', 'ok', 'okay']:
+                response = "Great! What specific question or area would you like to explore?"
+            elif any(w in q for w in ['thanks', 'thank you']):
+                response = "You're welcome! Feel free to ask if you have any more questions."
+            elif 'spend' in q or 'save' in q or 'money' in q or 'finance' in q:
                 metrics = calculate_financial_metrics(current_user)
-                response = f"Your savings rate is {metrics['rate']:.1f}%. I recommend saving at least 30% of income."
-            elif 'study' in q or 'gpa' in q:
+                response = f"Your savings rate is {metrics['rate']:.1f}%. I recommend saving at least 30% of your income."
+            elif 'study' in q or 'gpa' in q or 'exam' in q:
                 gpa = predict_gpa(current_user)
                 response = f"Your predicted GPA is {gpa['gpa']}/4.0. {gpa['recommendation']}"
-            elif 'fitness' in q or 'exercise' in q:
+            elif 'fitness' in q or 'exercise' in q or 'workout' in q:
                 total = sum(f.duration_min for f in current_user.fitness_logs)
                 response = f"You've logged {total} minutes of exercise. Aim for 150 min/week."
             elif 'goal' in q:
                 response = "I can help you set SMART goals. What area would you like to focus on?"
             else:
-                response = "I'm your Digital Twin AI. Ask about finances, studies, fitness, or goals!"
+                response = f"I'm your Digital Twin AI. I can help with finances, studies, fitness, or goals. Could you clarify your question: '{query}'?"
 
         # ---- Final safety ----
         if not response:
@@ -1084,6 +1125,10 @@ def privacy():
 @app.route('/terms')
 def terms():
     return render_template('terms.html')
+@app.route('/settings')
+@login_required
+def settings():
+    return render_template('settings.html')
 # ------------------------- Run the App -------------------------
 if __name__ == '__main__':
     with app.app_context():
