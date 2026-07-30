@@ -9,3 +9,5 @@ Milestone_01/templates/user/assistant.html
 Milestone_01/templates/user/fitness.html
 Milestone_01/templates/user/simulation.html
 Milestone_01/templates/user/study.html
+
+.env
